@@ -1,10 +1,12 @@
 use axum::http::StatusCode;
 use axum::{extract::Query, routing::get, Json, Router};
-use git2::StatusOptions;
+use git2::{Repository, StatusOptions};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
-use crate::git::open_repo;
+fn open_repo() -> Result<Repository, git2::Error> {
+    Repository::discover(".")
+}
 
 #[derive(Serialize)]
 struct StatusEntry {

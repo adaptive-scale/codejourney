@@ -5,7 +5,15 @@ use std::collections::HashSet;
 use crate::display;
 
 /// Scan tracked files for patterns that may indicate hardcoded secrets
-pub fn scan_secrets(repo: &Repository) -> Result<(), git2::Error> {
+fn should_skip(path: &str, default_skip: &[&str], extra_skip: &[String]) -> bool {
+    default_skip.iter().any(|d| path.starts_with(d))
+        || extra_skip.iter().any(|d| {
+            let normalized = if d.ends_with('/') { d.clone() } else { format!("{d}/") };
+            path.starts_with(&normalized)
+        })
+}
+
+pub fn scan_secrets(repo: &Repository, ignore_dirs: &[String]) -> Result<(), git2::Error> {
     display::print_sub_header("Secrets & Credential Detection");
 
     let head = repo.head()?.peel_to_tree()?;
@@ -36,8 +44,8 @@ pub fn scan_secrets(repo: &Repository) -> Result<(), git2::Error> {
 
         let path = format!("{}{}", dir, entry.name().unwrap_or(""));
 
-        // Skip vendored/dependency dirs
-        if skip_dirs.iter().any(|d| path.starts_with(d)) {
+        // Skip vendored/dependency dirs and user-specified ignore dirs
+        if should_skip(&path, &skip_dirs, ignore_dirs) {
             return TreeWalkResult::Ok;
         }
 
@@ -85,7 +93,7 @@ pub fn scan_secrets(repo: &Repository) -> Result<(), git2::Error> {
 }
 
 /// Check for dangerous code patterns
-pub fn dangerous_patterns(repo: &Repository) -> Result<(), git2::Error> {
+pub fn dangerous_patterns(repo: &Repository, ignore_dirs: &[String]) -> Result<(), git2::Error> {
     display::print_sub_header("Dangerous Code Patterns");
 
     let head = repo.head()?.peel_to_tree()?;
@@ -136,7 +144,7 @@ pub fn dangerous_patterns(repo: &Repository) -> Result<(), git2::Error> {
 
         let path = format!("{}{}", dir, entry.name().unwrap_or(""));
 
-        if skip_dirs.iter().any(|d| path.starts_with(d)) {
+        if should_skip(&path, &skip_dirs, ignore_dirs) {
             return TreeWalkResult::Ok;
         }
 
@@ -179,7 +187,7 @@ pub fn dangerous_patterns(repo: &Repository) -> Result<(), git2::Error> {
 }
 
 /// Check for sensitive files that shouldn't be tracked
-pub fn sensitive_files(repo: &Repository) -> Result<(), git2::Error> {
+pub fn sensitive_files(repo: &Repository, ignore_dirs: &[String]) -> Result<(), git2::Error> {
     display::print_sub_header("Sensitive Files in Repository");
 
     let head = repo.head()?.peel_to_tree()?;
@@ -198,7 +206,7 @@ pub fn sensitive_files(repo: &Repository) -> Result<(), git2::Error> {
 
         let path = format!("{}{}", dir, entry.name().unwrap_or(""));
 
-        if path.starts_with("vendor/") || path.starts_with("node_modules/") {
+        if should_skip(&path, &["vendor/", "node_modules/"], ignore_dirs) {
             return TreeWalkResult::Ok;
         }
 
@@ -328,7 +336,7 @@ pub fn gitignore_coverage(repo: &Repository) -> Result<(), git2::Error> {
 }
 
 /// Check for hardcoded IPs
-pub fn hardcoded_ips(repo: &Repository) -> Result<(), git2::Error> {
+pub fn hardcoded_ips(repo: &Repository, ignore_dirs: &[String]) -> Result<(), git2::Error> {
     display::print_sub_header("Hardcoded IP Addresses");
 
     let head = repo.head()?.peel_to_tree()?;
@@ -348,7 +356,7 @@ pub fn hardcoded_ips(repo: &Repository) -> Result<(), git2::Error> {
 
         let path = format!("{}{}", dir, entry.name().unwrap_or(""));
 
-        if skip_dirs.iter().any(|d| path.starts_with(d)) {
+        if should_skip(&path, &skip_dirs, ignore_dirs) {
             return TreeWalkResult::Ok;
         }
         if !scan_exts.iter().any(|ext| path.ends_with(ext)) {

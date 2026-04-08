@@ -9,7 +9,7 @@ TARGETS := \
 	x86_64-unknown-linux-gnu \
 	aarch64-unknown-linux-gnu
 
-.PHONY: build run serve clean test check fmt lint release release-all release-local dist checksums
+.PHONY: build run serve clean test check fmt lint release release-all release-local dist checksums tag publish
 
 build:
 	cargo build
@@ -69,3 +69,26 @@ dist: release-all
 checksums:
 	@cd $(DIST_DIR) && shasum -a 256 *.tar.gz > checksums-v$(VERSION).txt
 	@echo "Checksums written to $(DIST_DIR)/checksums-v$(VERSION).txt"
+
+# Auto-create/update and push a git tag from Cargo.toml version
+tag:
+	@if git rev-parse "v$(VERSION)" >/dev/null 2>&1; then \
+		echo "Updating existing tag v$(VERSION)..."; \
+		git tag -d "v$(VERSION)"; \
+		git push origin ":refs/tags/v$(VERSION)" 2>/dev/null || true; \
+	fi
+	git tag -a "v$(VERSION)" -m "Release v$(VERSION)"
+	git push origin "v$(VERSION)"
+	@echo "Tagged and pushed v$(VERSION)"
+
+# One-shot: build release, tag, and create GitHub release with binary
+publish: release-local tag
+	@if gh release view "v$(VERSION)" --repo adaptive-scale/codejourney >/dev/null 2>&1; then \
+		echo "Updating existing release v$(VERSION)..."; \
+		gh release delete "v$(VERSION)" --repo adaptive-scale/codejourney --yes; \
+	fi
+	gh release create "v$(VERSION)" $(DIST_DIR)/$(BINARY_NAME) \
+		--repo adaptive-scale/codejourney \
+		--title "v$(VERSION)" \
+		--generate-notes
+	@echo "Published v$(VERSION) to GitHub"

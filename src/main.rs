@@ -1,8 +1,13 @@
 mod analytics;
 mod cli;
+mod complexity;
 mod display;
-mod git;
+mod license;
+mod pdf;
+mod report_html;
+mod sast;
 mod scan;
+mod sca;
 mod security;
 mod server;
 
@@ -14,19 +19,21 @@ async fn main() {
     let cli = Cli::parse();
 
     let result = match &cli.command {
-        Commands::Init { path } => git::init(path),
-        Commands::Status => git::status(),
-        Commands::Add { files } => git::add(files),
-        Commands::Commit { message } => git::commit(message),
-        Commands::Log { count } => git::log(*count),
-        Commands::Branch { name } => git::branch(name),
-        Commands::Checkout { name } => git::checkout(name),
-        Commands::Diff => git::diff(),
         Commands::Scan {
             path,
             security_only,
             analytics_only,
-        } => scan::run(path, *security_only, *analytics_only),
+            pdf,
+            html,
+            ignore_dirs,
+        } => scan::run(
+            path,
+            *security_only,
+            *analytics_only,
+            pdf.as_deref(),
+            html.as_deref(),
+            ignore_dirs,
+        ),
         Commands::Serve { port } => {
             server::serve(*port).await;
             Ok(())

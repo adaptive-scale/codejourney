@@ -1,8 +1,15 @@
 use git2::Repository;
 
-use crate::{analytics, display, security};
+use crate::{analytics, complexity, display, license, pdf, report_html, sast, sca, security};
 
-pub fn run(path: &str, security_only: bool, analytics_only: bool) -> Result<(), git2::Error> {
+pub fn run(
+    path: &str,
+    security_only: bool,
+    analytics_only: bool,
+    pdf_path: Option<&str>,
+    html_path: Option<&str>,
+    ignore_dirs: &[String],
+) -> Result<(), git2::Error> {
     let repo = Repository::discover(path)?;
 
     println!("\x1b[1;37m");
@@ -25,7 +32,10 @@ pub fn run(path: &str, security_only: bool, analytics_only: bool) -> Result<(), 
 
     if !analytics_only {
         println!("\n\n\x1b[1;36m  Running security audit...\x1b[0m\n");
-        collected_output += &run_security(&repo);
+        collected_output += &run_security(&repo, ignore_dirs);
+
+        println!("\n\n\x1b[1;36m  Running advanced analysis (Phase 1)...\x1b[0m\n");
+        collected_output += &run_phase1(&repo, ignore_dirs);
     }
 
     // Phase 2: display all results
@@ -33,6 +43,22 @@ pub fn run(path: &str, security_only: bool, analytics_only: bool) -> Result<(), 
     println!("\x1b[1;37m  RESULTS\x1b[0m");
     println!("{}\n", "═".repeat(64));
     print!("{collected_output}");
+
+    // Export to PDF if requested
+    if let Some(pdf_out) = pdf_path {
+        match pdf::generate(&collected_output, pdf_out) {
+            Ok(()) => println!("\n\x1b[1;32m  ✓ PDF report saved to {pdf_out}\x1b[0m"),
+            Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to generate PDF: {e}\x1b[0m"),
+        }
+    }
+
+    // Export to HTML if requested
+    if let Some(html_out) = html_path {
+        match report_html::generate(&collected_output, html_out) {
+            Ok(()) => println!("\n\x1b[1;32m  ✓ HTML report saved to {html_out}\x1b[0m"),
+            Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to generate HTML: {e}\x1b[0m"),
+        }
+    }
 
     println!("\n\x1b[1;32m  ✓ Scan complete!\x1b[0m\n");
 
@@ -73,17 +99,46 @@ fn run_analytics(repo: &Repository) -> String {
     output
 }
 
-fn run_security(repo: &Repository) -> String {
+fn run_security(repo: &Repository, ignore_dirs: &[String]) -> String {
     let mut output = String::new();
 
+    let extra: Vec<String> = ignore_dirs.to_vec();
+
     output += &section_header("SECURITY AUDIT");
-    output += &run_step("Scanning for secrets", || security::scan_secrets(repo));
-    output += &run_step("Checking dangerous patterns", || security::dangerous_patterns(repo));
-    output += &run_step("Checking sensitive files", || security::sensitive_files(repo));
-    output += &run_step("Scanning for hardcoded IPs", || security::hardcoded_ips(repo));
+    let e = extra.clone();
+    output += &run_step("Scanning for secrets", || security::scan_secrets(repo, &e));
+    let e = extra.clone();
+    output += &run_step("Checking dangerous patterns", || security::dangerous_patterns(repo, &e));
+    let e = extra.clone();
+    output += &run_step("Checking sensitive files", || security::sensitive_files(repo, &e));
+    let e = extra.clone();
+    output += &run_step("Scanning for hardcoded IPs", || security::hardcoded_ips(repo, &e));
     output += &run_step("Checking secret-related commits", || security::secret_related_commits(repo));
     output += &run_step("Checking security-sensitive commits", || security::security_sensitive_commits(repo));
     output += &run_step("Checking .gitignore coverage", || security::gitignore_coverage(repo));
+
+    output
+}
+
+fn run_phase1(repo: &Repository, ignore_dirs: &[String]) -> String {
+    let mut output = String::new();
+    let extra: Vec<String> = ignore_dirs.to_vec();
+
+    output += &section_header("LICENSE COMPLIANCE");
+    let e = extra.clone();
+    output += &run_step("Scanning licenses", || license::license_scan(repo, &e));
+
+    output += &section_header("CYCLOMATIC COMPLEXITY");
+    let e = extra.clone();
+    output += &run_step("Analyzing complexity", || complexity::run(repo, &e));
+
+    output += &section_header("SAST (Static Application Security Testing)");
+    let e = extra.clone();
+    output += &run_step("Running SAST scan", || sast::sast_scan(repo, &e));
+
+    output += &section_header("SCA (Software Composition Analysis)");
+    let e = extra.clone();
+    output += &run_step("Running SCA scan", || sca::sca_scan(repo, &e));
 
     output
 }

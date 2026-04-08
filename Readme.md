@@ -97,3 +97,10 @@ All responses follow `{"ok": true, "data": ...}` / `{"ok": false, "error": "..."
 - [chrono](https://crates.io/crates/chrono) — date/time handling
 - [regex](https://crates.io/crates/regex) — pattern matching for security scans
 - [serde](https://crates.io/crates/serde) + [serde_json](https://crates.io/crates/serde_json) — JSON serialization
+
+## Roadmap
+
+- [ ] **License compliance checks** — detect and report license types across dependencies
+- [ ] **Cyclomatic complexity analysis** — measure code complexity per function/module
+- [ ] **SAST (Static Application Security Testing)** — deeper static analysis for vulnerability detection
+- [ ] **SCA (Software Composition Analysis)** — scan dependencies for known CVEs and outdated packages
