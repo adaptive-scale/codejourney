@@ -1,6 +1,9 @@
 use git2::Repository;
 
-use crate::{analytics, complexity, display, license, pdf, report_html, sast, sca, security};
+use crate::{
+    analytics, autofix, complexity, depgraph, display, history, license, pdf, report_html,
+    report_json, report_markdown, sast, sca, security,
+};
 
 pub fn run(
     path: &str,
@@ -8,6 +11,11 @@ pub fn run(
     analytics_only: bool,
     pdf_path: Option<&str>,
     html_path: Option<&str>,
+    json_path: Option<&str>,
+    markdown_path: Option<&str>,
+    dot_path: Option<&str>,
+    history_db: Option<&str>,
+    show_trends: bool,
     ignore_dirs: &[String],
 ) -> Result<(), git2::Error> {
     let repo = Repository::discover(path)?;
@@ -36,6 +44,9 @@ pub fn run(
 
         println!("\n\n\x1b[1;36m  Running advanced analysis (Phase 1)...\x1b[0m\n");
         collected_output += &run_phase1(&repo, ignore_dirs);
+
+        println!("\n\n\x1b[1;36m  Running Phase 2 analysis...\x1b[0m\n");
+        collected_output += &run_phase2(&repo, ignore_dirs, dot_path);
     }
 
     // Phase 2: display all results
@@ -43,6 +54,9 @@ pub fn run(
     println!("\x1b[1;37m  RESULTS\x1b[0m");
     println!("{}\n", "═".repeat(64));
     print!("{collected_output}");
+
+    // Collect metrics for reporting
+    let snapshot = history::collect_current_metrics(&repo, path, ignore_dirs);
 
     // Export to PDF if requested
     if let Some(pdf_out) = pdf_path {
@@ -57,6 +71,58 @@ pub fn run(
         match report_html::generate(&collected_output, html_out) {
             Ok(()) => println!("\n\x1b[1;32m  ✓ HTML report saved to {html_out}\x1b[0m"),
             Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to generate HTML: {e}\x1b[0m"),
+        }
+    }
+
+    // Export to JSON if requested
+    if let Some(json_out) = json_path {
+        match report_json::generate(&collected_output, &snapshot, json_out) {
+            Ok(()) => println!("\n\x1b[1;32m  ✓ JSON report saved to {json_out}\x1b[0m"),
+            Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to generate JSON: {e}\x1b[0m"),
+        }
+    }
+
+    // Export to Markdown if requested
+    if let Some(md_out) = markdown_path {
+        match report_markdown::generate(&collected_output, &snapshot, md_out) {
+            Ok(()) => println!("\n\x1b[1;32m  ✓ Markdown report saved to {md_out}\x1b[0m"),
+            Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to generate Markdown: {e}\x1b[0m"),
+        }
+    }
+
+    // SQLite history
+    if let Some(db_path) = history_db {
+        match history::init_db(db_path) {
+            Ok(conn) => {
+                match history::store_snapshot(&conn, &snapshot) {
+                    Ok(()) => println!("\n\x1b[1;32m  ✓ Scan stored in history database ({db_path})\x1b[0m"),
+                    Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to store snapshot: {e}\x1b[0m"),
+                }
+
+                if show_trends {
+                    println!("\n");
+                    match history::load_history(&conn, path, 20) {
+                        Ok(snapshots) => history::display_trends(&snapshots),
+                        Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to load history: {e}\x1b[0m"),
+                    }
+                }
+            }
+            Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to open history database: {e}\x1b[0m"),
+        }
+    } else if show_trends {
+        // Default db path
+        let default_db = format!("{}/.codejourney_history.db", path);
+        match history::init_db(&default_db) {
+            Ok(conn) => {
+                match history::load_history(&conn, path, 20) {
+                    Ok(snapshots) => {
+                        println!("\n");
+                        history::display_trends(&snapshots);
+                    }
+                    Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to load history: {e}\x1b[0m"),
+                }
+            }
+            Err(e) => eprintln!("\n\x1b[1;31m  ✗ Failed to open history database: {e}\x1b[0m"),
         }
     }
 
@@ -139,6 +205,26 @@ fn run_phase1(repo: &Repository, ignore_dirs: &[String]) -> String {
     output += &section_header("SCA (Software Composition Analysis)");
     let e = extra.clone();
     output += &run_step("Running SCA scan", || sca::sca_scan(repo, &e));
+
+    output
+}
+
+fn run_phase2(repo: &Repository, ignore_dirs: &[String], dot_path: Option<&str>) -> String {
+    let mut output = String::new();
+    let extra: Vec<String> = ignore_dirs.to_vec();
+
+    output += &section_header("DEPENDENCY GRAPH & REACHABILITY");
+    let e = extra.clone();
+    let dot = dot_path.map(|s| s.to_string());
+    output += &run_step("Building dependency graph", || {
+        depgraph::depgraph_scan(repo, &e, dot.as_deref())
+    });
+
+    output += &section_header("FIX SUGGESTIONS & AUTOFIX");
+    let e = extra.clone();
+    output += &run_step("Generating fix suggestions", || {
+        autofix::autofix_scan(repo, &e)
+    });
 
     output
 }

@@ -1,13 +1,21 @@
 # Codejourney
 
-A Rust CLI tool that combines native git operations with deep repository analytics and security auditing. Analyze commit history, contributor activity, code health, and security posture — all from your terminal.
+Goal is to build a tool that validate and checks code for various controls.
 
-## Features
+You would get insight into:
 
-- **Native Git Client** — init, status, add, commit, log, branch, checkout, and diff powered by `libgit2` (no shell dependency on git)
-- **Repository Analytics** — commit velocity, contributor stats, code churn, bug-fix hotspots, stale files, and more
-- **Security Audit** — detects leaked secrets, dangerous code patterns, sensitive files, hardcoded IPs, and `.gitignore` coverage gaps
-- **HTTP Server Mode** — expose git status, log, and diff as JSON REST endpoints
+- Git history statistics
+- License and code compliance
+- Secret scans
+- Code complexity
+- Basic static analysis and software composition analysis
+- Sensitive commits
+- Dependency analysis
+- Generate fix suggestions
+
+## Why CodeJourney
+
+As part of funding due diligence, you often have to share overview of your IP. Generally it is adhoc, does not show actual overview. Therefore I build codejounrney that show real statistics of the code and other IP assets.
 
 ## Installation
 
@@ -71,21 +79,7 @@ The security scan checks for:
 - Commits touching security-sensitive files (auth, session, crypto, permissions)
 - `.gitignore` coverage for common sensitive file patterns
 
-### HTTP Server
 
-```bash
-codejourney serve              # Start on port 3000
-codejourney serve --port 8080  # Custom port
-```
-
-Endpoints:
-
-| Endpoint | Description |
-|---|---|
-| `GET /health` | Health check |
-| `GET /status` | Repository file status |
-| `GET /log?count=N` | Recent commits |
-| `GET /diff` | Working directory diff |
 
 All responses follow `{"ok": true, "data": ...}` / `{"ok": false, "error": "..."}`.
 

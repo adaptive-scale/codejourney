@@ -26,6 +26,21 @@ pub enum Commands {
         /// Export report to HTML at the given file path
         #[arg(long)]
         html: Option<String>,
+        /// Export report to JSON at the given file path
+        #[arg(long)]
+        json: Option<String>,
+        /// Export report to Markdown at the given file path (suitable for PR comments)
+        #[arg(long)]
+        markdown: Option<String>,
+        /// Export dependency graph as DOT file (convert to SVG with: dot -Tsvg -o deps.svg deps.dot)
+        #[arg(long)]
+        dot: Option<String>,
+        /// Store scan results in SQLite history database at the given path
+        #[arg(long)]
+        history_db: Option<String>,
+        /// Show trend charts from historical scan data
+        #[arg(long)]
+        show_trends: bool,
         /// Comma-separated list of directories to ignore during scanning
         #[arg(long, value_delimiter = ',')]
         ignore_dirs: Vec<String>,

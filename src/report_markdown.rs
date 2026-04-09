@@ -1,0 +1,183 @@
+use crate::history::ScanSnapshot;
+use crate::pdf::strip_ansi;
+use std::fmt::Write;
+use std::fs;
+
+/// Generate a Markdown report suitable for PR comments.
+pub fn generate(
+    content: &str,
+    snapshot: &ScanSnapshot,
+    output_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let plain = strip_ansi(content);
+    let mut md = String::with_capacity(plain.len());
+
+    // Header
+    writeln!(md, "# CodeJourney Scan Report")?;
+    writeln!(md)?;
+    writeln!(
+        md,
+        "> **Commit:** `{}` | **Date:** {} | **Repo:** `{}`",
+        &snapshot.commit_hash[..7.min(snapshot.commit_hash.len())],
+        &snapshot.timestamp[..10.min(snapshot.timestamp.len())],
+        snapshot.repo_path
+    )?;
+    writeln!(md)?;
+
+    // Summary table
+    writeln!(md, "## Summary")?;
+    writeln!(md)?;
+    writeln!(md, "| Metric | Value |")?;
+    writeln!(md, "|--------|-------|")?;
+    writeln!(
+        md,
+        "| SAST Findings (High/Medium/Info) | {}/{}/{} |",
+        snapshot.sast_high, snapshot.sast_medium, snapshot.sast_info
+    )?;
+    writeln!(
+        md,
+        "| Total Dependencies | {} |",
+        snapshot.sca_total_deps
+    )?;
+    writeln!(
+        md,
+        "| Unpinned Dependencies | {} |",
+        snapshot.sca_unpinned
+    )?;
+    writeln!(
+        md,
+        "| Known CVEs | {} |",
+        snapshot.sca_cve_count
+    )?;
+    writeln!(
+        md,
+        "| Avg Complexity | {:.1} |",
+        snapshot.complexity_avg
+    )?;
+    writeln!(
+        md,
+        "| Functions Above Threshold | {} |",
+        snapshot.complexity_above_threshold
+    )?;
+    writeln!(
+        md,
+        "| Secrets Found | {} |",
+        snapshot.secrets_found
+    )?;
+    writeln!(md)?;
+
+    // Status badges
+    let overall_status = if snapshot.sast_high > 0 || snapshot.secrets_found > 0 {
+        "🔴 **CRITICAL** — High severity issues found"
+    } else if snapshot.sast_medium > 0 || snapshot.sca_unpinned > 5 {
+        "🟡 **WARNING** — Medium severity issues found"
+    } else {
+        "🟢 **PASS** — No significant issues found"
+    };
+    writeln!(md, "**Overall Status:** {overall_status}")?;
+    writeln!(md)?;
+
+    // Parse and render sections from the report
+    let mut in_section = false;
+
+    for line in plain.lines() {
+        let trimmed = line.trim();
+
+        // Section headers
+        if trimmed.starts_with('║') && trimmed.ends_with('║') {
+            let title = trimmed
+                .trim_start_matches('║')
+                .trim_end_matches('║')
+                .trim();
+            if in_section {
+                writeln!(md)?;
+            }
+            writeln!(md, "## {title}")?;
+            writeln!(md)?;
+            in_section = true;
+            continue;
+        }
+
+        // Skip decorative lines
+        if trimmed.starts_with('╔')
+            || trimmed.starts_with('╚')
+            || trimmed.chars().all(|c| c == '─' || c == '═')
+        {
+            continue;
+        }
+
+        // Skip empty lines
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Sub-headers
+        if trimmed.starts_with('▸') {
+            let sub = trimmed.trim_start_matches('▸').trim();
+            writeln!(md, "### {sub}")?;
+            writeln!(md)?;
+            continue;
+        }
+
+        // Warnings
+        if trimmed.starts_with('⚠') {
+            let msg = trimmed.trim_start_matches('⚠').trim();
+            writeln!(md, "> ⚠️ **Warning:** {msg}")?;
+            writeln!(md)?;
+            continue;
+        }
+
+        // OK
+        if trimmed.starts_with('✓') {
+            let msg = trimmed.trim_start_matches('✓').trim();
+            writeln!(md, "> ✅ {msg}")?;
+            writeln!(md)?;
+            continue;
+        }
+
+        // Stat lines
+        if let Some(colon_pos) = trimmed.find(':') {
+            let label = trimmed[..colon_pos].trim();
+            let value = trimmed[colon_pos + 1..].trim();
+            if !label.is_empty()
+                && !value.is_empty()
+                && label.len() <= 40
+                && !label.contains('/')
+            {
+                writeln!(md, "- **{label}:** {value}")?;
+                continue;
+            }
+        }
+
+        // Skip sparklines and bar chars
+        if trimmed.contains('█')
+            || trimmed.contains('▁')
+            || trimmed.contains('▂')
+            || trimmed.contains('▃')
+            || trimmed.contains('▄')
+            || trimmed.contains('▅')
+            || trimmed.contains('▆')
+            || trimmed.contains('▇')
+        {
+            continue;
+        }
+
+        // Table-like content (detect header + separator pattern)
+        // Just render as code block for now
+        if !trimmed.is_empty() {
+            writeln!(md, "  {trimmed}")?;
+        }
+    }
+
+    // Footer
+    writeln!(md)?;
+    writeln!(md, "---")?;
+    writeln!(
+        md,
+        "*Generated by [CodeJourney](https://github.com/adaptive-scale/codestature) on {}*",
+        &snapshot.timestamp[..10.min(snapshot.timestamp.len())]
+    )?;
+
+    fs::write(output_path, md)?;
+    Ok(())
+}

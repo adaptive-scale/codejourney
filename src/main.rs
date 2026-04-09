@@ -1,10 +1,15 @@
 mod analytics;
+mod autofix;
 mod cli;
 mod complexity;
+mod depgraph;
 mod display;
+mod history;
 mod license;
 mod pdf;
 mod report_html;
+mod report_json;
+mod report_markdown;
 mod sast;
 mod scan;
 mod sca;
@@ -25,6 +30,11 @@ async fn main() {
             analytics_only,
             pdf,
             html,
+            json,
+            markdown,
+            dot,
+            history_db,
+            show_trends,
             ignore_dirs,
         } => scan::run(
             path,
@@ -32,6 +42,11 @@ async fn main() {
             *analytics_only,
             pdf.as_deref(),
             html.as_deref(),
+            json.as_deref(),
+            markdown.as_deref(),
+            dot.as_deref(),
+            history_db.as_deref(),
+            *show_trends,
             ignore_dirs,
         ),
         Commands::Serve { port } => {
