@@ -4,7 +4,7 @@ A comprehensive Rust CLI that audits any git repository for code quality, securi
 
 ## Why CodeJourney
 
-As part of funding due diligence, you often have to share an overview of your IP. Generally it is ad-hoc and does not show the actual state of the code. CodeJourney produces real, reproducible statistics about your codebase and other IP assets so that the picture you share is accurate and verifiable.
+As part of funding due diligence, companies are often asked to provide an overview of their intellectual property. Too often, that overview is assembled ad hoc and fails to reflect the true state of the codebase. CodeJourney delivers real, reproducible metrics on your code and other IP assets, giving investors an accurate and verifiable picture.
 
 ## Installation
 
