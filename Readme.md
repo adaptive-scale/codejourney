@@ -1,21 +1,10 @@
-# Codejourney
+# CodeJourney
 
-Goal is to build a tool that validate and checks code for various controls.
-
-You would get insight into:
-
-- Git history statistics
-- License and code compliance
-- Secret scans
-- Code complexity
-- Basic static analysis and software composition analysis
-- Sensitive commits
-- Dependency analysis
-- Generate fix suggestions
+A comprehensive Rust CLI that audits any git repository for code quality, security, license compliance, and project health — producing rich terminal output and exportable reports in PDF, HTML, JSON, and Markdown.
 
 ## Why CodeJourney
 
-As part of funding due diligence, you often have to share overview of your IP. Generally it is adhoc, does not show actual overview. Therefore I build codejounrney that show real statistics of the code and other IP assets.
+As part of funding due diligence, you often have to share an overview of your IP. Generally it is ad-hoc and does not show the actual state of the code. CodeJourney produces real, reproducible statistics about your codebase and other IP assets so that the picture you share is accurate and verifiable.
 
 ## Installation
 
@@ -25,76 +14,129 @@ cargo build --release
 
 The binary will be at `target/release/codejourney`.
 
-## Usage
+## Features
 
-### Git Operations
-
-```bash
-codejourney init [path]              # Initialize a new repository
-codejourney status                   # Show working tree status
-codejourney add <files...>           # Stage files (use . for all)
-codejourney commit -m "message"      # Create a commit
-codejourney log [-c 20]              # Show recent commits (default: 10)
-codejourney branch <name>            # Create a new branch
-codejourney checkout <name>          # Switch branches
-codejourney diff                     # Show working directory diff
-```
-
-### Repository Scan
-
-```bash
-codejourney scan                     # Full analytics + security audit
-codejourney scan --analytics-only    # Analytics only
-codejourney scan --security-only     # Security audit only
-codejourney scan --path /other/repo  # Scan a different repository
-```
-
-#### Analytics
-
-The scan produces rich terminal output covering:
-
-- Repository overview (total commits, branches, tags, active span)
-- Commit velocity (yearly, daily, and weekly averages)
+### Repository Analytics
+- Repository overview — total commits, branches, tags, first/last commit, active span
+- Commit velocity — yearly, daily, and weekly averages
 - Top contributors with bar charts
 - Lines added/removed per author
 - Monthly commit frequency with sparklines
-- Activity by day of week and hour of day
-- Most frequently changed files
-- Code churn across recent commits
+- Activity heatmaps by day of week and hour of day
+- Most frequently changed files and code churn analysis
 - Bug-fix hotspot files
 - Emergency commits (reverts, hotfixes, rollbacks)
 - Merge frequency by month
 - Largest tracked files
 - Stale files sorted by last modification
 
-#### Security Audit
-
-The security scan checks for:
-
-- Secrets and credentials in source files (passwords, API keys, AWS keys, Base64 blobs)
-- Dangerous code patterns (SQL injection, command injection, disabled TLS, weak crypto, CORS wildcards)
-- Sensitive files committed to the repository (`.env`, `*.key`, `*.pem`, etc.)
-- Hardcoded IP addresses
+### Security Audit
+- Secret and credential detection in source files (passwords, API keys, AWS keys, Base64 blobs)
+- Dangerous code patterns — SQL injection, command injection, disabled TLS, weak crypto, CORS wildcards
+- Sensitive files committed to the repository (`.env`, `*.key`, `*.pem`, keystores)
+- Hardcoded IP address detection
 - Commits mentioning secrets or credentials
 - Commits touching security-sensitive files (auth, session, crypto, permissions)
-- `.gitignore` coverage for common sensitive file patterns
+- `.gitignore` coverage check for common sensitive patterns
 
+### License Compliance
+- Detects project license from manifest files (`Cargo.toml`, `package.json`, `go.mod`)
+- **Reads `LICENSE`/`COPYING` files and identifies the actual license type** by matching against known SPDX license text signatures
+- Supports MIT, Apache-2.0, GPL-2.0/3.0, AGPL-3.0, LGPL-2.1/3.0, BSD-2/3-Clause, MPL-2.0, EPL-1.0/2.0, Unlicense, CC0, BSL-1.0, Zlib, WTFPL, Artistic-2.0, CDDL, ISC, 0BSD
+- SPDX-License-Identifier header detection as fallback
+- Confidence scoring (high / medium / low)
+- Categorizes licenses as permissive, weak copyleft, or strong copyleft
+- Warns on copyleft conflicts and missing license declarations
 
+### Cyclomatic Complexity Analysis
+- Per-function complexity scoring across Rust, Go, TypeScript/JavaScript, Python, and Java
+- Configurable threshold with warnings for functions exceeding limits
+- Top N most complex functions report
+- Per-language file and function counts
+
+### SAST (Static Application Security Testing)
+- Taint analysis for SQL injection (string interpolation in queries)
+- Insecure deserialization (Python pickle, yaml.load, Java ObjectInputStream, PHP unserialize)
+- Path traversal detection
+- Unsafe `eval()`, `exec()`, `Function` constructor, dynamic imports
+- Rust `unsafe` blocks and raw pointer usage
+- JavaScript prototype pollution patterns
+- Go template injection
+- Shell command execution with user input
+- Findings grouped by severity (HIGH / MEDIUM / INFO)
+
+### SCA (Software Composition Analysis)
+- Parses lockfiles: `Cargo.lock`, `package-lock.json`, `go.sum`, `requirements.txt`
+- Full dependency listing per lockfile
+- Detection of unpinned or loose version constraints
+- Pre-release / 0.x version flagging for stability risk
+
+### Dependency Graph & Reachability
+- Builds an inter-package dependency graph across the repo
+- Exports as DOT format (convert to SVG with `dot -Tsvg -o deps.svg deps.dot`)
+- Detects circular dependencies and unused phantom dependencies
+
+### Fix Suggestions & Autofix
+- Generates remediation hints for SAST findings
+- Suggests version bumps for vulnerable dependencies
+- Refactoring proposals for high-complexity functions
+
+### Historical Tracking
+- Stores scan results in a local SQLite database
+- Trend charts for complexity, vulnerability count, and license drift over time
+
+### Report Generation
+- **PDF** — styled multi-page report with charts and tables
+- **HTML** — interactive report with Tailwind CSS, Chart.js bar charts, and **collapsible sections**
+- **JSON** — structured machine-readable output for CI/CD integration
+- **Markdown** — concise summary suitable for PR comments
+
+## Usage
+
+### Repository Scan
+
+```bash
+codejourney scan                           # Full analytics + security + advanced analysis
+codejourney scan --analytics-only          # Analytics only
+codejourney scan --security-only           # Security audit only
+codejourney scan --path /other/repo        # Scan a different repository
+```
+
+### Report Exports
+
+```bash
+codejourney scan --pdf report.pdf          # Export to PDF
+codejourney scan --html report.html        # Export to interactive HTML
+codejourney scan --json report.json        # Export to JSON
+codejourney scan --markdown report.md      # Export to Markdown (PR-friendly)
+codejourney scan --dot deps.dot            # Export dependency graph as DOT
+```
+
+You can combine multiple export flags in a single run:
+
+```bash
+codejourney scan --pdf report.pdf --html report.html --json report.json
+```
+
+### Filtering
+
+```bash
+codejourney scan --ignore-dirs docs,examples,fixtures
+```
+
+Built-in skip directories (`vendor/`, `node_modules/`, `target/`, `.git/`, `dist/`, `build/`) are always excluded; `--ignore-dirs` adds to this list.
+
+### Historical Tracking
+
+```bash
+codejourney scan --history-db ./scans.db   # Store this scan in SQLite history
+codejourney scan --show-trends             # Display trend charts from history
+```
+
+### HTTP Server
+
+```bash
+codejourney serve --port 3000              # Start HTTP API server
+```
 
 All responses follow `{"ok": true, "data": ...}` / `{"ok": false, "error": "..."}`.
-
-## Dependencies
-
-- [git2](https://crates.io/crates/git2) — libgit2 bindings
-- [clap](https://crates.io/crates/clap) — CLI argument parsing
-- [axum](https://crates.io/crates/axum) + [tokio](https://crates.io/crates/tokio) — HTTP server
-- [chrono](https://crates.io/crates/chrono) — date/time handling
-- [regex](https://crates.io/crates/regex) — pattern matching for security scans
-- [serde](https://crates.io/crates/serde) + [serde_json](https://crates.io/crates/serde_json) — JSON serialization
-
-## Roadmap
-
-- [ ] **License compliance checks** — detect and report license types across dependencies
-- [ ] **Cyclomatic complexity analysis** — measure code complexity per function/module
-- [ ] **SAST (Static Application Security Testing)** — deeper static analysis for vulnerability detection
-- [ ] **SCA (Software Composition Analysis)** — scan dependencies for known CVEs and outdated packages
