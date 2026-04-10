@@ -2,6 +2,8 @@
 
 A comprehensive Rust CLI that audits any git repository for code quality, security, license compliance, and project health — producing rich terminal output and exportable reports in PDF, HTML, JSON, and Markdown.
 
+![Recording 2026-04-10 at 14 29 51](https://github.com/user-attachments/assets/9efc102b-8d8e-41c4-aa4c-647e6c51f225)
+
 ## Why CodeJourney
 
 As part of funding due diligence, companies are often asked to provide an overview of their intellectual property. Too often, that overview is assembled ad hoc and fails to reflect the true state of the codebase. CodeJourney delivers real, reproducible metrics on your code and other IP assets, giving investors an accurate and verifiable picture.
