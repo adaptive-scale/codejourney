@@ -10,69 +10,89 @@ pub fn strip_ansi(input: &str) -> String {
 }
 
 // ── Colors ──────────────────────────────────────────────────────────────────
+//
+// Light palette. Reports are printed and circulated during due diligence, so
+// the page stays white and every ink colour is chosen to keep contrast on it.
 
-fn color_dark_bg() -> Color {
-    Color::Rgb(Rgb::new(24.0 / 255.0, 30.0 / 255.0, 46.0 / 255.0, None))
+fn rgb(r: u8, g: u8, b: u8) -> Color {
+    Color::Rgb(Rgb::new(
+        r as f32 / 255.0,
+        g as f32 / 255.0,
+        b as f32 / 255.0,
+        None,
+    ))
+}
+
+fn color_page_bg() -> Color {
+    rgb(255, 255, 255)
 }
 
 fn color_section_bg() -> Color {
-    Color::Rgb(Rgb::new(15.0 / 255.0, 23.0 / 255.0, 42.0 / 255.0, None))
+    rgb(241, 245, 249)
 }
 
 fn color_accent() -> Color {
-    Color::Rgb(Rgb::new(56.0 / 255.0, 189.0 / 255.0, 248.0 / 255.0, None))
+    rgb(2, 132, 199)
 }
 
-fn color_white() -> Color {
-    Color::Rgb(Rgb::new(1.0, 1.0, 1.0, None))
+fn color_heading_text() -> Color {
+    rgb(15, 23, 42)
 }
 
-fn color_light_text() -> Color {
-    Color::Rgb(Rgb::new(226.0 / 255.0, 232.0 / 255.0, 240.0 / 255.0, None))
+fn color_body_text() -> Color {
+    rgb(51, 65, 85)
 }
 
 fn color_muted_text() -> Color {
-    Color::Rgb(Rgb::new(148.0 / 255.0, 163.0 / 255.0, 184.0 / 255.0, None))
+    rgb(100, 116, 139)
 }
 
 fn color_warning() -> Color {
-    Color::Rgb(Rgb::new(251.0 / 255.0, 191.0 / 255.0, 36.0 / 255.0, None))
+    rgb(180, 83, 9)
 }
 
 fn color_error() -> Color {
-    Color::Rgb(Rgb::new(248.0 / 255.0, 113.0 / 255.0, 113.0 / 255.0, None))
+    rgb(220, 38, 38)
 }
 
 fn color_success() -> Color {
-    Color::Rgb(Rgb::new(52.0 / 255.0, 211.0 / 255.0, 153.0 / 255.0, None))
+    rgb(5, 150, 105)
+}
+
+fn color_error_bg() -> Color {
+    rgb(254, 242, 242)
+}
+
+fn color_success_bg() -> Color {
+    rgb(236, 253, 245)
 }
 
 fn color_table_header_bg() -> Color {
-    Color::Rgb(Rgb::new(30.0 / 255.0, 41.0 / 255.0, 59.0 / 255.0, None))
+    rgb(226, 232, 240)
 }
 
 fn color_table_row_even() -> Color {
-    Color::Rgb(Rgb::new(24.0 / 255.0, 33.0 / 255.0, 51.0 / 255.0, None))
+    rgb(255, 255, 255)
 }
 
 fn color_table_row_odd() -> Color {
-    Color::Rgb(Rgb::new(20.0 / 255.0, 27.0 / 255.0, 44.0 / 255.0, None))
+    rgb(248, 250, 252)
 }
 
 fn color_table_border() -> Color {
-    Color::Rgb(Rgb::new(51.0 / 255.0, 65.0 / 255.0, 85.0 / 255.0, None))
+    rgb(203, 213, 225)
 }
 
 fn color_sub_header() -> Color {
-    Color::Rgb(Rgb::new(251.0 / 255.0, 191.0 / 255.0, 36.0 / 255.0, None))
+    rgb(180, 83, 9)
 }
 
 fn color_gradient_cyan() -> Color {
-    Color::Rgb(Rgb::new(6.0 / 255.0, 182.0 / 255.0, 212.0 / 255.0, None))
+    rgb(8, 145, 178)
 }
 
 fn color_gradient_purple() -> Color {
-    Color::Rgb(Rgb::new(168.0 / 255.0, 85.0 / 255.0, 247.0 / 255.0, None))
+    rgb(147, 51, 234)
 }
 
 // ── Parsed elements (shared with HTML report) ───────────────────────────────
@@ -398,7 +418,9 @@ impl PdfRenderer {
     }
 
     fn new_page(&mut self) {
-        let (page, layer) = self.doc.add_page(self.page_width, self.page_height, "Layer 1");
+        let (page, layer) = self
+            .doc
+            .add_page(self.page_width, self.page_height, "Layer 1");
         self.current_layer = self.doc.get_page(page).get_layer(layer);
         self.y = self.margin_top;
 
@@ -408,7 +430,7 @@ impl PdfRenderer {
             Mm(0.0),
             self.page_width,
             self.page_height,
-            color_dark_bg(),
+            color_page_bg(),
         );
 
         // Footer line
@@ -434,16 +456,12 @@ impl PdfRenderer {
         self.current_layer.set_fill_color(fill.clone());
         self.current_layer.set_outline_color(fill);
         self.current_layer.set_outline_thickness(0.0);
-        self.current_layer
-            .add_rect(rect);
+        self.current_layer.add_rect(rect);
     }
 
     fn draw_line(&self, x1: Mm, y1: Mm, x2: Mm, y2: Mm, color: Color, thickness: f32) {
         let line = Line {
-            points: vec![
-                (Point::new(x1, y1), false),
-                (Point::new(x2, y2), false),
-            ],
+            points: vec![(Point::new(x1, y1), false), (Point::new(x2, y2), false)],
             is_closed: false,
         };
         self.current_layer.set_outline_color(color);
@@ -474,19 +492,37 @@ impl PdfRenderer {
             Mm(0.0),
             self.page_width,
             self.page_height,
-            color_dark_bg(),
+            color_page_bg(),
         );
 
         // Top gradient bar
         let bar_h = Mm(3.0);
-        self.draw_rect(Mm(0.0), Mm(self.page_height.0 - bar_h.0), Mm(70.0), bar_h, color_gradient_cyan());
-        self.draw_rect(Mm(70.0), Mm(self.page_height.0 - bar_h.0), Mm(70.0), bar_h, color_accent());
-        self.draw_rect(Mm(140.0), Mm(self.page_height.0 - bar_h.0), Mm(70.0), bar_h, color_gradient_purple());
+        self.draw_rect(
+            Mm(0.0),
+            Mm(self.page_height.0 - bar_h.0),
+            Mm(70.0),
+            bar_h,
+            color_gradient_cyan(),
+        );
+        self.draw_rect(
+            Mm(70.0),
+            Mm(self.page_height.0 - bar_h.0),
+            Mm(70.0),
+            bar_h,
+            color_accent(),
+        );
+        self.draw_rect(
+            Mm(140.0),
+            Mm(self.page_height.0 - bar_h.0),
+            Mm(70.0),
+            bar_h,
+            color_gradient_purple(),
+        );
 
         self.y = Mm(self.page_height.0 - 20.0);
 
         // Title
-        self.current_layer.set_fill_color(color_white());
+        self.current_layer.set_fill_color(color_heading_text());
         self.current_layer.use_text(
             "CodeJourney",
             22.0,
@@ -556,10 +592,22 @@ impl PdfRenderer {
         let cw = self.content_width();
 
         // Background
-        self.draw_rect(self.margin_left, self.y - box_h, Mm(cw), box_h, color_section_bg());
+        self.draw_rect(
+            self.margin_left,
+            self.y - box_h,
+            Mm(cw),
+            box_h,
+            color_section_bg(),
+        );
 
         // Left accent bar
-        self.draw_rect(self.margin_left, self.y - box_h, Mm(2.5), box_h, color_accent());
+        self.draw_rect(
+            self.margin_left,
+            self.y - box_h,
+            Mm(2.5),
+            box_h,
+            color_accent(),
+        );
 
         // Dot indicator
         self.draw_rect(
@@ -571,7 +619,7 @@ impl PdfRenderer {
         );
 
         // Title text
-        self.current_layer.set_fill_color(color_white());
+        self.current_layer.set_fill_color(color_heading_text());
         self.current_layer.use_text(
             title,
             11.0,
@@ -604,12 +652,7 @@ impl PdfRenderer {
             self.y,
             Mm(self.margin_left.0 + 80.0),
             self.y,
-            Color::Rgb(Rgb::new(
-                251.0 / 255.0,
-                191.0 / 255.0,
-                36.0 / 255.0,
-                None,
-            )),
+            color_sub_header(),
             0.3,
         );
 
@@ -630,7 +673,7 @@ impl PdfRenderer {
             &self.font_regular,
         );
 
-        self.current_layer.set_fill_color(color_light_text());
+        self.current_layer.set_fill_color(color_body_text());
         self.current_layer.use_text(
             value,
             8.0,
@@ -654,7 +697,7 @@ impl PdfRenderer {
             self.y - Mm(4.5),
             Mm(cw - 4.0),
             Mm(7.0),
-            Color::Rgb(Rgb::new(80.0 / 255.0, 30.0 / 255.0, 30.0 / 255.0, None)),
+            color_error_bg(),
         );
 
         // Left bar
@@ -702,7 +745,7 @@ impl PdfRenderer {
             self.y - Mm(4.5),
             Mm(cw - 4.0),
             Mm(7.0),
-            Color::Rgb(Rgb::new(15.0 / 255.0, 50.0 / 255.0, 40.0 / 255.0, None)),
+            color_success_bg(),
         );
 
         // Left bar
@@ -783,7 +826,7 @@ impl PdfRenderer {
         );
 
         // Header text
-        self.current_layer.set_fill_color(color_light_text());
+        self.current_layer.set_fill_color(color_body_text());
         for (ci, header) in headers.iter().enumerate() {
             let x = table_x + (ci as f32 * col_w);
             let truncated = self.truncate_text(header, 7.0, col_w - 4.0);
@@ -818,13 +861,7 @@ impl PdfRenderer {
                 color_table_row_odd()
             };
 
-            self.draw_rect(
-                Mm(table_x),
-                self.y - row_h,
-                Mm(cw - 4.0),
-                row_h,
-                bg,
-            );
+            self.draw_rect(Mm(table_x), self.y - row_h, Mm(cw - 4.0), row_h, bg);
 
             for (ci, cell) in row.iter().enumerate() {
                 let x = table_x + (ci as f32 * col_w);
@@ -887,7 +924,7 @@ impl PdfRenderer {
 
             // Label
             let truncated = self.truncate_text(label, 7.0, 50.0);
-            self.current_layer.set_fill_color(color_light_text());
+            self.current_layer.set_fill_color(color_body_text());
             self.current_layer.use_text(
                 &truncated,
                 7.0,
@@ -918,7 +955,7 @@ impl PdfRenderer {
             }
 
             // Value label
-            self.current_layer.set_fill_color(color_white());
+            self.current_layer.set_fill_color(color_heading_text());
             self.current_layer.use_text(
                 &value.to_string(),
                 6.5,

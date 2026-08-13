@@ -237,9 +237,7 @@ fn parse_stat_line(line: &str) -> Option<(String, String)> {
 
 /// Split a table header line into column names
 fn parse_table_columns(line: &str) -> Vec<String> {
-    line.split_whitespace()
-        .map(|s| s.to_string())
-        .collect()
+    line.split_whitespace().map(|s| s.to_string()).collect()
 }
 
 /// Detect column start positions from a header line based on multi-space gaps
@@ -271,10 +269,7 @@ fn detect_column_positions(header: &str) -> Vec<usize> {
 /// Split a row line based on detected column positions
 fn split_by_positions(line: &str, positions: &[usize], expected_cols: usize) -> Vec<String> {
     if positions.len() < 2 {
-        return line
-            .split_whitespace()
-            .map(|s| s.to_string())
-            .collect();
+        return line.split_whitespace().map(|s| s.to_string()).collect();
     }
 
     let mut cols = Vec::new();
@@ -295,10 +290,7 @@ fn split_by_positions(line: &str, positions: &[usize], expected_cols: usize) -> 
 
     // If we got fewer columns than expected, try whitespace split instead
     if cols.len() < expected_cols {
-        return line
-            .split_whitespace()
-            .map(|s| s.to_string())
-            .collect();
+        return line.split_whitespace().map(|s| s.to_string()).collect();
     }
 
     cols
@@ -324,7 +316,7 @@ fn render_element(
         Element::SubHeader(title) => {
             write!(
                 body,
-                r#"<h3 class="text-base font-semibold text-amber-400 mt-6 mb-3 flex items-center gap-2">
+                r#"<h3 class="text-base font-semibold text-amber-600 dark:text-amber-400 mt-6 mb-3 flex items-center gap-2">
   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"/></svg>
   {}
 </h3>
@@ -338,7 +330,7 @@ fn render_element(
 
             write!(
                 body,
-                r#"<div class="bg-slate-800/50 rounded-xl p-4 my-3 border border-slate-700/50">
+                r#"<div class="bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700/50 rounded-xl p-4 my-3 border">
   <canvas id="{cid}" height="{height}"></canvas>
 </div>
 "#,
@@ -354,47 +346,21 @@ fn render_element(
             write!(
                 chart_scripts,
                 r#"
-new Chart(document.getElementById('{cid}'), {{
+cjCharts.push(new Chart(document.getElementById('{cid}'), {{
   type: 'bar',
   data: {{
     labels: [{labels}],
     datasets: [{{
       data: [{values}],
-      backgroundColor: 'rgba(56, 189, 248, 0.6)',
-      borderColor: 'rgba(56, 189, 248, 0.9)',
+      backgroundColor: cjTheme().bar,
+      borderColor: cjTheme().barBorder,
       borderWidth: 1,
       borderRadius: 4,
       barThickness: 18,
     }}]
   }},
-  options: {{
-    indexAxis: 'y',
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {{
-      legend: {{ display: false }},
-      tooltip: {{
-        backgroundColor: '#1e293b',
-        titleColor: '#e2e8f0',
-        bodyColor: '#94a3b8',
-        borderColor: '#334155',
-        borderWidth: 1,
-        cornerRadius: 8,
-        padding: 10,
-      }}
-    }},
-    scales: {{
-      x: {{
-        grid: {{ color: 'rgba(148,163,184,0.08)' }},
-        ticks: {{ color: '#94a3b8', font: {{ size: 11 }} }}
-      }},
-      y: {{
-        grid: {{ display: false }},
-        ticks: {{ color: '#cbd5e1', font: {{ family: "'JetBrains Mono', 'Fira Code', monospace", size: 11 }} }}
-      }}
-    }}
-  }}
-}});
+  options: cjChartOptions()
+}}));
 "#,
                 labels = labels.join(","),
                 values = values.join(","),
@@ -406,13 +372,13 @@ new Chart(document.getElementById('{cid}'), {{
                 r#"<div class="overflow-x-auto my-3">
 <table class="w-full text-sm">
   <thead>
-    <tr class="border-b border-slate-700">"#
+    <tr class="border-b border-slate-300 dark:border-slate-700">"#
             )?;
             for h in headers {
                 write!(
                     body,
                     r#"
-      <th class="text-left py-2 px-3 text-slate-300 font-semibold text-xs uppercase tracking-wider">{}</th>"#,
+      <th class="text-left py-2 px-3 text-slate-600 dark:text-slate-300 font-semibold text-xs uppercase tracking-wider">{}</th>"#,
                     html_escape(h)
                 )?;
             }
@@ -425,20 +391,20 @@ new Chart(document.getElementById('{cid}'), {{
             )?;
             for (ri, row) in rows.iter().enumerate() {
                 let bg = if ri % 2 == 0 {
-                    "bg-slate-800/30"
+                    "bg-white dark:bg-slate-800/30"
                 } else {
-                    "bg-slate-800/60"
+                    "bg-slate-50 dark:bg-slate-800/60"
                 };
                 write!(
                     body,
                     r#"
-    <tr class="{bg} hover:bg-slate-700/40 transition-colors">"#
+    <tr class="{bg} hover:bg-slate-100 dark:hover:bg-slate-700/40 transition-colors">"#
                 )?;
                 for cell in row {
                     write!(
                         body,
                         r#"
-      <td class="py-2 px-3 text-slate-400 font-mono text-xs">{}</td>"#,
+      <td class="py-2 px-3 text-slate-600 dark:text-slate-400 font-mono text-xs">{}</td>"#,
                         html_escape(cell)
                     )?;
                 }
@@ -461,9 +427,9 @@ new Chart(document.getElementById('{cid}'), {{
             write!(
                 body,
                 r#"<div class="flex items-center gap-2 py-1.5 px-3">
-  <span class="text-slate-400 text-sm">{}</span>
-  <span class="text-slate-500">&middot;</span>
-  <span class="text-slate-200 font-semibold text-sm font-mono">{}</span>
+  <span class="text-slate-500 dark:text-slate-400 text-sm">{}</span>
+  <span class="text-slate-400 dark:text-slate-500">&middot;</span>
+  <span class="text-slate-900 dark:text-slate-200 font-semibold text-sm font-mono">{}</span>
 </div>
 "#,
                 html_escape(label),
@@ -473,9 +439,9 @@ new Chart(document.getElementById('{cid}'), {{
         Element::Warning(msg) => {
             write!(
                 body,
-                r#"<div class="flex items-start gap-2 py-1.5 px-3 my-1 bg-red-500/10 border border-red-500/20 rounded-lg">
-  <svg class="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-  <span class="text-red-300 text-sm">{}</span>
+                r#"<div class="flex items-start gap-2 py-1.5 px-3 my-1 bg-red-50 border-red-200 dark:bg-red-500/10 dark:border-red-500/20 border rounded-lg">
+  <svg class="w-4 h-4 text-red-500 dark:text-red-400 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+  <span class="text-red-700 dark:text-red-300 text-sm">{}</span>
 </div>
 "#,
                 html_escape(msg)
@@ -484,9 +450,9 @@ new Chart(document.getElementById('{cid}'), {{
         Element::Ok(msg) => {
             write!(
                 body,
-                r#"<div class="flex items-start gap-2 py-1.5 px-3 my-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-  <svg class="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-  <span class="text-emerald-300 text-sm">{}</span>
+                r#"<div class="flex items-start gap-2 py-1.5 px-3 my-1 bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20 border rounded-lg">
+  <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+  <span class="text-emerald-700 dark:text-emerald-300 text-sm">{}</span>
 </div>
 "#,
                 html_escape(msg)
@@ -495,7 +461,7 @@ new Chart(document.getElementById('{cid}'), {{
         Element::Info(msg) => {
             write!(
                 body,
-                r#"<p class="text-slate-500 text-sm py-1 px-3">{}</p>
+                r#"<p class="text-slate-500 dark:text-slate-500 text-sm py-1 px-3">{}</p>
 "#,
                 html_escape(msg)
             )?;
@@ -523,12 +489,12 @@ pub fn generate(content: &str, output_path: &str) -> Result<(), Box<dyn std::err
             write!(
                 &mut body,
                 r#"<details open class="mt-6 group">
-  <summary class="cursor-pointer list-none flex items-center gap-3 py-3 px-4 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition-all select-none">
-    <svg class="w-4 h-4 text-slate-500 transition-transform group-open:rotate-90" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
-    <span class="h-2 w-2 rounded-full bg-cyan-400 inline-block"></span>
-    <h2 class="text-lg font-bold text-slate-100">{}</h2>
+  <summary class="cursor-pointer list-none flex items-center gap-3 py-3 px-4 rounded-lg bg-slate-100 border-slate-200 hover:border-slate-300 dark:bg-slate-900/60 dark:border-slate-800 dark:hover:border-slate-700 border transition-all select-none">
+    <svg class="w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform group-open:rotate-90" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+    <span class="h-2 w-2 rounded-full bg-cyan-600 dark:bg-cyan-400 inline-block"></span>
+    <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100">{}</h2>
   </summary>
-  <div class="pl-4 pt-2 pb-4 border-l-2 border-slate-800 ml-5 mt-2">
+  <div class="pl-4 pt-2 pb-4 border-l-2 border-slate-200 dark:border-slate-800 ml-5 mt-2">
 "#,
                 html_escape(title)
             )?;
@@ -548,7 +514,7 @@ pub fn generate(content: &str, output_path: &str) -> Result<(), Box<dyn std::err
     write!(
         &mut html,
         r##"<!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -567,18 +533,34 @@ tailwind.config = {{
   }}
 }}
 </script>
+<script>
+  // Applied before first paint so a dark-theme reload never flashes light.
+  if (localStorage.getItem('codejourney-theme') === 'dark') {{
+    document.documentElement.classList.add('dark');
+  }}
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
   body {{ font-family: 'JetBrains Mono', 'Fira Code', monospace; }}
   ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
-  ::-webkit-scrollbar-track {{ background: #0f172a; }}
-  ::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 3px; }}
-  ::-webkit-scrollbar-thumb:hover {{ background: #475569; }}
+  ::-webkit-scrollbar-track {{ background: #e2e8f0; }}
+  ::-webkit-scrollbar-thumb {{ background: #94a3b8; border-radius: 3px; }}
+  ::-webkit-scrollbar-thumb:hover {{ background: #64748b; }}
+  .dark ::-webkit-scrollbar-track {{ background: #0f172a; }}
+  .dark ::-webkit-scrollbar-thumb {{ background: #334155; }}
+  .dark ::-webkit-scrollbar-thumb:hover {{ background: #475569; }}
   details summary::-webkit-details-marker {{ display: none; }}
   details summary::marker {{ display: none; content: ''; }}
+  .theme-icon-dark {{ display: none; }}
+  .dark .theme-icon-dark {{ display: inline; }}
+  .dark .theme-icon-light {{ display: none; }}
+  @media print {{
+    .no-print {{ display: none; }}
+    details {{ break-inside: avoid; }}
+  }}
 </style>
 </head>
-<body class="bg-slate-950 text-slate-300 min-h-screen">
+<body class="bg-white text-slate-700 dark:bg-slate-950 dark:text-slate-300 min-h-screen">
 
 <!-- Top gradient bar -->
 <div class="h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500"></div>
@@ -594,15 +576,19 @@ tailwind.config = {{
         </svg>
       </div>
       <div>
-        <h1 class="text-2xl font-bold text-white tracking-tight">CodeJourney Report</h1>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">CodeJourney Report</h1>
         <p class="text-slate-500 text-xs">Generated {timestamp}</p>
       </div>
     </div>
     <div class="flex items-center justify-between mt-4">
-      <div class="h-px flex-1 bg-gradient-to-r from-slate-700 via-slate-600 to-transparent"></div>
-      <div class="flex gap-2 ml-4">
-        <button onclick="document.querySelectorAll('details').forEach(d=>d.open=true)" class="text-xs text-slate-500 hover:text-slate-300 border border-slate-700 hover:border-slate-600 rounded-md px-2.5 py-1 transition-colors">Expand all</button>
-        <button onclick="document.querySelectorAll('details').forEach(d=>d.open=false)" class="text-xs text-slate-500 hover:text-slate-300 border border-slate-700 hover:border-slate-600 rounded-md px-2.5 py-1 transition-colors">Collapse all</button>
+      <div class="h-px flex-1 bg-gradient-to-r from-slate-300 via-slate-200 dark:from-slate-700 dark:via-slate-600 to-transparent"></div>
+      <div class="flex gap-2 ml-4 no-print">
+        <button onclick="document.querySelectorAll('details').forEach(d=>d.open=true)" class="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 border border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600 rounded-md px-2.5 py-1 transition-colors">Expand all</button>
+        <button onclick="document.querySelectorAll('details').forEach(d=>d.open=false)" class="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 border border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600 rounded-md px-2.5 py-1 transition-colors">Collapse all</button>
+        <button onclick="cjToggleTheme()" title="Toggle light/dark theme" aria-label="Toggle light/dark theme" class="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-300 border border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600 rounded-md px-2 py-1 transition-colors">
+          <svg class="theme-icon-light w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4.243 2.343a1 1 0 011.414 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707zM17 9a1 1 0 110 2h-1a1 1 0 110-2h1zm-2.343 4.243a1 1 0 011.414 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707zM10 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-4.95-1.05a1 1 0 011.414 1.414l-.707.707a1 1 0 01-1.414-1.414l.707-.707zM4 9a1 1 0 110 2H3a1 1 0 110-2h1zm1.464-4.243a1 1 0 011.414-1.414l.707.707A1 1 0 016.171 5.464l-.707-.707zM10 6a4 4 0 100 8 4 4 0 000-8z" clip-rule="evenodd"/></svg>
+          <svg class="theme-icon-dark w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+        </button>
       </div>
     </div>
   </header>
@@ -613,8 +599,8 @@ tailwind.config = {{
   </main>
 
   <!-- Footer -->
-  <footer class="mt-16 pt-6 border-t border-slate-800">
-    <div class="flex items-center justify-between text-xs text-slate-600">
+  <footer class="mt-16 pt-6 border-t border-slate-200 dark:border-slate-800">
+    <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-600">
       <span>Generated by CodeJourney</span>
       <span>{timestamp}</span>
     </div>
@@ -623,8 +609,75 @@ tailwind.config = {{
 </div>
 
 <script>
-Chart.defaults.color = '#94a3b8';
-Chart.defaults.borderColor = 'rgba(148,163,184,0.1)';
+const cjCharts = [];
+
+function cjTheme() {{
+  return document.documentElement.classList.contains('dark')
+    ? {{
+        tick: '#94a3b8', tickY: '#cbd5e1', grid: 'rgba(148,163,184,0.08)',
+        tooltipBg: '#1e293b', tooltipTitle: '#e2e8f0', tooltipBody: '#94a3b8',
+        tooltipBorder: '#334155',
+        bar: 'rgba(56,189,248,0.6)', barBorder: 'rgba(56,189,248,0.9)',
+      }}
+    : {{
+        tick: '#475569', tickY: '#334155', grid: 'rgba(100,116,139,0.15)',
+        tooltipBg: '#ffffff', tooltipTitle: '#0f172a', tooltipBody: '#475569',
+        tooltipBorder: '#cbd5e1',
+        bar: 'rgba(2,132,199,0.65)', barBorder: 'rgba(2,132,199,0.95)',
+      }};
+}}
+
+function cjChartOptions() {{
+  const t = cjTheme();
+  return {{
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {{
+      legend: {{ display: false }},
+      tooltip: {{
+        backgroundColor: t.tooltipBg,
+        titleColor: t.tooltipTitle,
+        bodyColor: t.tooltipBody,
+        borderColor: t.tooltipBorder,
+        borderWidth: 1,
+        cornerRadius: 8,
+        padding: 10,
+      }}
+    }},
+    scales: {{
+      x: {{
+        grid: {{ color: t.grid }},
+        ticks: {{ color: t.tick, font: {{ size: 11 }} }}
+      }},
+      y: {{
+        grid: {{ display: false }},
+        ticks: {{ color: t.tickY, font: {{ family: "'JetBrains Mono', 'Fira Code', monospace", size: 11 }} }}
+      }}
+    }}
+  }};
+}}
+
+function cjApplyChartTheme() {{
+  const t = cjTheme();
+  Chart.defaults.color = t.tick;
+  Chart.defaults.borderColor = t.grid;
+  cjCharts.forEach(c => {{
+    c.data.datasets[0].backgroundColor = t.bar;
+    c.data.datasets[0].borderColor = t.barBorder;
+    c.options = cjChartOptions();
+    c.update('none');
+  }});
+}}
+
+function cjToggleTheme() {{
+  const dark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('codejourney-theme', dark ? 'dark' : 'light');
+  cjApplyChartTheme();
+}}
+
+Chart.defaults.color = cjTheme().tick;
+Chart.defaults.borderColor = cjTheme().grid;
 {chart_scripts}
 </script>
 </body>
