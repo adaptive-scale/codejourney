@@ -110,7 +110,7 @@ The binary will be at `target/release/codejourney`.
 - **PDF** — styled multi-page report with charts and tables
 - **HTML** — interactive report with Tailwind CSS, Chart.js bar charts, and **collapsible sections**
 - **JSON** — structured machine-readable output for CI/CD integration
-- **Markdown** — concise summary suitable for PR comments
+- **Markdown** — a summary table followed by every finding, with tables and charts preserved as Markdown tables
 
 ## Usage
 
@@ -129,7 +129,7 @@ codejourney scan --path /other/repo        # Scan a different repository
 codejourney scan --pdf report.pdf          # Export to PDF
 codejourney scan --html report.html        # Export to interactive HTML
 codejourney scan --json report.json        # Export to JSON
-codejourney scan --markdown report.md      # Export to Markdown (PR-friendly)
+codejourney scan --markdown report.md      # Export all findings to Markdown
 codejourney scan --dot deps.dot            # Export dependency graph as DOT
 ```
 

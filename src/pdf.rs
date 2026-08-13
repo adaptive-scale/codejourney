@@ -95,9 +95,9 @@ fn color_gradient_purple() -> Color {
     rgb(147, 51, 234)
 }
 
-// ── Parsed elements (shared with HTML report) ───────────────────────────────
+// ── Parsed elements (shared with the HTML and Markdown reports) ─────────────
 
-enum Element {
+pub(crate) enum Element {
     SectionHeader(String),
     SubHeader(String),
     BarChart(Vec<(String, usize)>),
@@ -113,7 +113,7 @@ enum Element {
 
 // ── Report parser ───────────────────────────────────────────────────────────
 
-fn parse_report(content: &str) -> Vec<Element> {
+pub(crate) fn parse_report(content: &str) -> Vec<Element> {
     let plain = strip_ansi(content);
     let lines: Vec<&str> = plain.lines().collect();
     let mut elements: Vec<Element> = Vec::new();

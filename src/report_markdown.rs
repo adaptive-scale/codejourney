@@ -1,16 +1,55 @@
 use crate::history::ScanSnapshot;
-use crate::pdf::strip_ansi;
+use crate::pdf::{parse_report, Element};
 use std::fmt::Write;
 use std::fs;
 
-/// Generate a Markdown report suitable for PR comments.
+/// Escape the characters that would otherwise break out of a Markdown table cell.
+fn escape_cell(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('|', "\\|")
+}
+
+/// Render a table, padding or trimming each row to the header width so the
+/// Markdown stays well-formed even when a row parsed short.
+fn write_table(
+    md: &mut String,
+    headers: &[String],
+    rows: &[Vec<String>],
+) -> Result<(), Box<dyn std::error::Error>> {
+    if headers.is_empty() || rows.is_empty() {
+        return Ok(());
+    }
+
+    let cols = headers.len();
+
+    writeln!(
+        md,
+        "| {} |",
+        headers
+            .iter()
+            .map(|h| escape_cell(h))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    )?;
+    writeln!(md, "|{}", " --- |".repeat(cols))?;
+
+    for row in rows {
+        let cells: Vec<String> = (0..cols)
+            .map(|i| escape_cell(row.get(i).map(|s| s.trim()).unwrap_or("")))
+            .collect();
+        writeln!(md, "| {} |", cells.join(" | "))?;
+    }
+    writeln!(md)?;
+
+    Ok(())
+}
+
+/// Generate a Markdown report containing every finding from the scan.
 pub fn generate(
     content: &str,
     snapshot: &ScanSnapshot,
     output_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let plain = strip_ansi(content);
-    let mut md = String::with_capacity(plain.len());
+    let mut md = String::with_capacity(content.len());
 
     // Header
     writeln!(md, "# CodeJourney Scan Report")?;
@@ -34,39 +73,18 @@ pub fn generate(
         "| SAST Findings (High/Medium/Info) | {}/{}/{} |",
         snapshot.sast_high, snapshot.sast_medium, snapshot.sast_info
     )?;
-    writeln!(
-        md,
-        "| Total Dependencies | {} |",
-        snapshot.sca_total_deps
-    )?;
-    writeln!(
-        md,
-        "| Unpinned Dependencies | {} |",
-        snapshot.sca_unpinned
-    )?;
-    writeln!(
-        md,
-        "| Known CVEs | {} |",
-        snapshot.sca_cve_count
-    )?;
-    writeln!(
-        md,
-        "| Avg Complexity | {:.1} |",
-        snapshot.complexity_avg
-    )?;
+    writeln!(md, "| Total Dependencies | {} |", snapshot.sca_total_deps)?;
+    writeln!(md, "| Unpinned Dependencies | {} |", snapshot.sca_unpinned)?;
+    writeln!(md, "| Known CVEs | {} |", snapshot.sca_cve_count)?;
+    writeln!(md, "| Avg Complexity | {:.1} |", snapshot.complexity_avg)?;
     writeln!(
         md,
         "| Functions Above Threshold | {} |",
         snapshot.complexity_above_threshold
     )?;
-    writeln!(
-        md,
-        "| Secrets Found | {} |",
-        snapshot.secrets_found
-    )?;
+    writeln!(md, "| Secrets Found | {} |", snapshot.secrets_found)?;
     writeln!(md)?;
 
-    // Status badges
     let overall_status = if snapshot.sast_high > 0 || snapshot.secrets_found > 0 {
         "🔴 **CRITICAL** — High severity issues found"
     } else if snapshot.sast_medium > 0 || snapshot.sca_unpinned > 5 {
@@ -77,104 +95,52 @@ pub fn generate(
     writeln!(md, "**Overall Status:** {overall_status}")?;
     writeln!(md)?;
 
-    // Parse and render sections from the report
-    let mut in_section = false;
-
-    for line in plain.lines() {
-        let trimmed = line.trim();
-
-        // Section headers
-        if trimmed.starts_with('║') && trimmed.ends_with('║') {
-            let title = trimmed
-                .trim_start_matches('║')
-                .trim_end_matches('║')
-                .trim();
-            if in_section {
+    // Full findings, rendered from the same structured parse the PDF and HTML
+    // reports use so nothing is dropped or flattened into loose text.
+    for elem in parse_report(content) {
+        match elem {
+            Element::SectionHeader(title) => {
+                writeln!(md, "## {title}")?;
                 writeln!(md)?;
             }
-            writeln!(md, "## {title}")?;
-            writeln!(md)?;
-            in_section = true;
-            continue;
-        }
-
-        // Skip decorative lines
-        if trimmed.starts_with('╔')
-            || trimmed.starts_with('╚')
-            || trimmed.chars().all(|c| c == '─' || c == '═')
-        {
-            continue;
-        }
-
-        // Skip empty lines
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Sub-headers
-        if trimmed.starts_with('▸') {
-            let sub = trimmed.trim_start_matches('▸').trim();
-            writeln!(md, "### {sub}")?;
-            writeln!(md)?;
-            continue;
-        }
-
-        // Warnings
-        if trimmed.starts_with('⚠') {
-            let msg = trimmed.trim_start_matches('⚠').trim();
-            writeln!(md, "> ⚠️ **Warning:** {msg}")?;
-            writeln!(md)?;
-            continue;
-        }
-
-        // OK
-        if trimmed.starts_with('✓') {
-            let msg = trimmed.trim_start_matches('✓').trim();
-            writeln!(md, "> ✅ {msg}")?;
-            writeln!(md)?;
-            continue;
-        }
-
-        // Stat lines
-        if let Some(colon_pos) = trimmed.find(':') {
-            let label = trimmed[..colon_pos].trim();
-            let value = trimmed[colon_pos + 1..].trim();
-            if !label.is_empty()
-                && !value.is_empty()
-                && label.len() <= 40
-                && !label.contains('/')
-            {
-                writeln!(md, "- **{label}:** {value}")?;
-                continue;
+            Element::SubHeader(title) => {
+                writeln!(md, "### {title}")?;
+                writeln!(md)?;
             }
-        }
-
-        // Skip sparklines and bar chars
-        if trimmed.contains('█')
-            || trimmed.contains('▁')
-            || trimmed.contains('▂')
-            || trimmed.contains('▃')
-            || trimmed.contains('▄')
-            || trimmed.contains('▅')
-            || trimmed.contains('▆')
-            || trimmed.contains('▇')
-        {
-            continue;
-        }
-
-        // Table-like content (detect header + separator pattern)
-        // Just render as code block for now
-        if !trimmed.is_empty() {
-            writeln!(md, "  {trimmed}")?;
+            Element::Table { headers, rows } => {
+                write_table(&mut md, &headers, &rows)?;
+            }
+            Element::BarChart(items) => {
+                writeln!(md, "| Item | Count |")?;
+                writeln!(md, "| --- | ---: |")?;
+                for (label, value) in items {
+                    writeln!(md, "| {} | {} |", escape_cell(&label), value)?;
+                }
+                writeln!(md)?;
+            }
+            Element::Stat(label, value) => {
+                writeln!(md, "- **{label}:** {value}")?;
+            }
+            Element::Warning(msg) => {
+                writeln!(md, "> ⚠️ **Warning:** {msg}")?;
+                writeln!(md)?;
+            }
+            Element::Ok(msg) => {
+                writeln!(md, "> ✅ {msg}")?;
+                writeln!(md)?;
+            }
+            Element::Info(msg) => {
+                writeln!(md, "{msg}")?;
+                writeln!(md)?;
+            }
         }
     }
 
     // Footer
-    writeln!(md)?;
     writeln!(md, "---")?;
     writeln!(
         md,
-        "*Generated by [CodeJourney](https://github.com/adaptive-scale/codestature) on {}*",
+        "*Generated by [CodeJourney](https://github.com/adaptive-scale/codejourney) on {}*",
         &snapshot.timestamp[..10.min(snapshot.timestamp.len())]
     )?;
 
