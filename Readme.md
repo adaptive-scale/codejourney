@@ -10,6 +10,25 @@ As part of funding due diligence, companies are often asked to provide an overvi
 
 ## Installation
 
+### Install script (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/adaptive-scale/codejourney/master/install.sh | sh
+```
+
+This detects your platform, downloads the matching binary from the latest GitHub
+release, verifies its checksum, and installs it to `/usr/local/bin` (falling back
+to `~/.local/bin` when `/usr/local/bin` isn't writable).
+
+Pin a version or change the install location with environment variables:
+
+```bash
+VERSION=v0.2.0 sh -c "$(curl -fsSL https://raw.githubusercontent.com/adaptive-scale/codejourney/master/install.sh)"
+INSTALL_DIR=~/bin sh -c "$(curl -fsSL https://raw.githubusercontent.com/adaptive-scale/codejourney/master/install.sh)"
+```
+
+### From source
+
 ```bash
 cargo build --release
 ```

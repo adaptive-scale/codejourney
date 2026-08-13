@@ -1,10 +1,13 @@
 [package]
 name = "codejourney"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-git2 = "0.19"
+# CodeJourney only reads local repositories, so git2's networking features
+# (https/ssh) are disabled — this drops the OpenSSL and libssh2 system
+# dependencies and lets `cargo build --release` work without them installed.
+git2 = { version = "0.19", default-features = false }
 clap = { version = "4", features = ["derive"] }
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
